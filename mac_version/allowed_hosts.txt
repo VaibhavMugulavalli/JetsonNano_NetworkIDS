@@ -1,0 +1,5 @@
+# Example list of authorized devices for Windows testing
+# One IP address per line.  Lines starting with '#' are ignored.
+192.168.1.1
+192.168.1.2
+192.168.1.3
