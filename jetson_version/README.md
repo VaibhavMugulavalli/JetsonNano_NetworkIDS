@@ -2,12 +2,16 @@
 
 This directory contains the Linux/Jetson deployment of the network monitor. It captures traffic, computes host-level metrics, detects suspicious patterns, and serves a web dashboard.
 
+For a full beginner-friendly, hardware-to-dashboard walkthrough (including Ruckus ICX 7150 switch commands), see:
+`BEGINNER_ICX7150_DEPLOYMENT_GUIDE.md`
+
 ## Contents
 
 * `jetson_network_monitor/` - core package (capture, analysis, detection, dashboard, ML model wrapper)
 * `run_jetson_monitor.py` - convenience launcher for Jetson/Linux
 * `allowed_hosts.txt` - optional allowlist for known hosts
 * `train_model.py` - trains an IsolationForest model from feature CSV data
+* `collect_training_data.py` - captures live traffic features to CSV for model training
 * `generate_generic_training_data.py` - generates synthetic, environment-agnostic training data
 * `generic_training_data.csv` - ready-to-use generic baseline dataset
 * `sample_training_data.csv` - original sample feature dataset
@@ -91,6 +95,28 @@ python3 train_model.py \
 ```
 
 `train_model.py` automatically filters to `label=normal` rows when a `label` column is present and prints a suggested starting value for `--anomaly-threshold`.
+
+## Collecting live training data (from mirrored traffic)
+
+You can build your own environment-specific CSV on Jetson:
+
+```bash
+sudo python3 collect_training_data.py \
+  --interface eth0 \
+  --output live_training_data.csv \
+  --duration 900 \
+  --sample-interval 2 \
+  --window 10 \
+  --label normal
+```
+
+Then train:
+
+```bash
+python3 train_model.py \
+  --input live_training_data.csv \
+  --output model.pkl
+```
 
 ## Alert types
 
