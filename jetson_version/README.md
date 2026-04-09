@@ -13,6 +13,7 @@ For a full beginner-friendly, hardware-to-dashboard walkthrough (including Rucku
 * `train_model.py` - trains an IsolationForest model from feature CSV data
 * `collect_training_data.py` - captures live traffic features to CSV for model training
 * `generate_generic_training_data.py` - generates synthetic, environment-agnostic training data
+* `generate_seeded_synthetic_data.py` - builds synthetic normal+threat rows from your captured baseline CSV
 * `generic_training_data.csv` - ready-to-use generic baseline dataset
 * `sample_training_data.csv` - original sample feature dataset
 
@@ -115,6 +116,27 @@ Then train:
 ```bash
 python3 train_model.py \
   --input live_training_data.csv \
+  --output model.pkl
+```
+
+## Building synthetic data from your captured baseline
+
+If your live sample is small or repetitive, create a richer seeded synthetic dataset:
+
+```bash
+python3 generate_seeded_synthetic_data.py \
+  --input live_training_data.csv \
+  --output seeded_synthetic_data.csv \
+  --rows 6000 \
+  --anomaly-ratio 0.12 \
+  --seed 42
+```
+
+Train from the seeded dataset (default behavior trains on `label=normal` only):
+
+```bash
+python3 train_model.py \
+  --input seeded_synthetic_data.csv \
   --output model.pkl
 ```
 

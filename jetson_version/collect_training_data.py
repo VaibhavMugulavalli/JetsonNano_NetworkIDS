@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--window", type=int, default=10, help="Feature window in seconds")
     parser.add_argument("--label", default="normal", help="Label value to write in CSV")
     parser.add_argument("--min-packet-rate", type=float, default=0.01, help="Skip rows below this packet_rate")
+    parser.add_argument("--skip-src-ip", action="append", default=["0.0.0.0"], help="Source IP to skip; can be passed multiple times")
     return parser.parse_args()
 
 
@@ -59,6 +60,7 @@ def main() -> None:
 
     fieldnames = FEATURE_COLUMNS + ["label", "src_ip", "timestamp"]
     rows_written = 0
+    skip_src_ips = set(args.skip_src_ip or [])
     start = time.time()
     next_sample = start
 
@@ -82,6 +84,8 @@ def main() -> None:
 
                 host_stats = analyzer.host_stats
                 for src_ip in host_stats.keys():
+                    if not src_ip or src_ip in skip_src_ips:
+                        continue
                     packet_rate = analyzer.packet_rate(src_ip, interval=args.window)
                     if packet_rate < args.min_packet_rate:
                         continue

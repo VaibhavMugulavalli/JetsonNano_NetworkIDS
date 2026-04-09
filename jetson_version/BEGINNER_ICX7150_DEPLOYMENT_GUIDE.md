@@ -382,6 +382,45 @@ sudo python3 run_jetson_monitor.py \
   --anomaly-threshold -0.45
 ```
 
+### 14.5 Expand a small real sample into synthetic normal + threats
+
+If your real capture is repetitive (for example many near-identical rows), use:
+
+```bash
+cd ~/complete_project/jetson_version
+python3 generate_seeded_synthetic_data.py \
+  --input live_training_data.csv \
+  --output seeded_synthetic_data.csv \
+  --rows 6000 \
+  --anomaly-ratio 0.12 \
+  --seed 42
+```
+
+Then train:
+
+```bash
+cd ~/complete_project/jetson_version
+python3 train_model.py \
+  --input seeded_synthetic_data.csv \
+  --output model.pkl \
+  --contamination 0.05
+```
+
+Deploy:
+
+```bash
+cd ~/complete_project/jetson_version
+sudo python3 run_jetson_monitor.py \
+  --interface eth0 \
+  --allowed-hosts allowed_hosts.txt \
+  --scan-threshold 50 \
+  --flood-threshold 100 \
+  --dashboard-port 5000 \
+  --window 60 \
+  --ml-model model.pkl \
+  --anomaly-threshold -0.45
+```
+
 ## 15. Optional Auto-Start On Boot (systemd)
 
 Create service file:
