@@ -1,8 +1,23 @@
 # Complete Network Monitoring Project
 
-This repository contains two separate versions of the network monitoring system:
+This repository has two folders:
 
-- **windows_version** – for testing the concept on a Windows laptop using Wi‑Fi or Ethernet.  This version uses Scapy with Npcap to capture packets and provides a minimal wrapper to run the core monitoring engine.
-- **jetson_version** – designed for deployment on the Jetson Nano in a lab environment with a managed switch configured for port mirroring.  It includes the optional machine‑learning model and training script.
+- `jetson_version` - deploy monitor on Jetson Nano (recommended runtime path)
+- `windows_version` - Windows utilities, including traffic simulation toward Jetson
 
-Each version contains the full `jetson_network_monitor` package required to run the system and one or more convenience scripts.  See the individual `README.md` files in each subdirectory for platform‑specific setup and execution instructions.
+## Recommended workflow
+
+1. Simulate traffic from PC to Jetson using:
+   - `windows_version/simulate_traffic_to_jetson.py`
+2. Train model in Google Colab using:
+   - `jetson_version/train_model.py`
+   - `jetson_version/COLAB_TRAINING_GUIDE.md`
+3. Drop `model.pkl` into `jetson_version/`.
+4. Start Jetson monitor:
+
+```bash
+cd jetson_version
+sudo python3 run_jetson_monitor.py --interface eth0 --dashboard-port 5000
+```
+
+If `model.pkl` exists in `jetson_version/`, it is auto-loaded.

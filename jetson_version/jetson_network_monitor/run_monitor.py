@@ -18,6 +18,7 @@ import argparse
 import signal
 import sys
 import logging
+import time
 from queue import Queue
 
 from .capture import PacketCapture
@@ -29,7 +30,7 @@ from .dashboard import DashboardServer
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Hardware‑assisted network monitoring system")
     parser.add_argument('--interface', '-i', default='eth0', help='Network interface to monitor (e.g., eth1)')
     parser.add_argument('--allowed-hosts', '-a', help='Path to file containing list of allowed IP addresses, one per line')
@@ -39,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--window', type=int, default=60, help='Time window in seconds for traffic analysis history')
     parser.add_argument('--ml-model', help='Path to a trained ML model for anomaly detection (IsolationForest pickle)')
     parser.add_argument('--anomaly-threshold', type=float, default=-0.5, help='Anomaly score threshold for ML detector (lower is more anomalous)')
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def load_allowed_hosts(path: str) -> list:
@@ -53,8 +54,22 @@ def load_allowed_hosts(path: str) -> list:
         return []
 
 
-def main() -> None:
-    args = parse_args()
+def _safe_register_signal(sig, handler) -> None:
+    try:
+        signal.signal(sig, handler)
+    except (AttributeError, OSError, ValueError) as exc:
+        logging.debug("Signal %s unavailable on this platform: %s", sig, exc)
+
+
+def _stop_component(component, name: str) -> None:
+    try:
+        component.stop()
+    except Exception as exc:
+        logging.warning("Failed to stop %s cleanly: %s", name, exc)
+
+
+def main(argv=None) -> None:
+    args = parse_args(argv)
     allowed_hosts = load_allowed_hosts(args.allowed_hosts)
     packet_queue: Queue = Queue(maxsize=10000)
     alert_queue: Queue = Queue(maxsize=100)
@@ -85,15 +100,19 @@ def main() -> None:
     # handle signals
     def shutdown(signum, frame):
         logging.info("Shutting down")
-        capture.stop()
-        analyzer.stop()
-        detector.stop()
-        dashboard.stop()
+        _stop_component(capture, "capture")
+        _stop_component(analyzer, "analyzer")
+        _stop_component(detector, "detector")
+        _stop_component(dashboard, "dashboard")
         sys.exit(0)
-    signal.signal(signal.SIGINT, shutdown)
-    signal.signal(signal.SIGTERM, shutdown)
-    # keep main thread alive
-    signal.pause()
+    _safe_register_signal(signal.SIGINT, shutdown)
+    _safe_register_signal(getattr(signal, "SIGTERM", signal.SIGINT), shutdown)
+    # keep main thread alive (signal.pause() is unavailable on Windows)
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        shutdown(signal.SIGINT, None)
 
 
 if __name__ == '__main__':

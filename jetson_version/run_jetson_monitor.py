@@ -8,7 +8,7 @@ trained ML model.  See README.md for details.
 """
 
 import argparse
-import sys
+from pathlib import Path
 
 from jetson_network_monitor.run_monitor import main as core_main
 
@@ -28,19 +28,28 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
-    # Build sys.argv for the core monitor.  Include all relevant parameters.
-    sys.argv = [sys.argv[0],
-                '--interface', args.interface,
-                '--scan-threshold', str(args.scan_threshold),
-                '--flood-threshold', str(args.flood_threshold),
-                '--dashboard-port', str(args.dashboard_port),
-                '--window', str(args.window)]
+    # Build argv for the core monitor.  Include all relevant parameters.
+    core_argv = ['--interface', args.interface,
+                 '--scan-threshold', str(args.scan_threshold),
+                 '--flood-threshold', str(args.flood_threshold),
+                 '--dashboard-port', str(args.dashboard_port),
+                 '--window', str(args.window)]
     if args.allowed_hosts:
-        sys.argv += ['--allowed-hosts', args.allowed_hosts]
-    if args.ml_model:
-        sys.argv += ['--ml-model', args.ml_model, '--anomaly-threshold', str(args.anomaly_threshold)]
+        core_argv += ['--allowed-hosts', args.allowed_hosts]
+
+    # Streamlined behavior:
+    # 1) If --ml-model is passed, use it.
+    # 2) Otherwise, if ./model.pkl exists, auto-load it.
+    model_path = args.ml_model
+    if not model_path:
+        default_model = Path("model.pkl")
+        if default_model.exists():
+            model_path = str(default_model)
+
+    if model_path:
+        core_argv += ['--ml-model', model_path, '--anomaly-threshold', str(args.anomaly_threshold)]
     # Call the core monitor
-    core_main()
+    core_main(core_argv)
 
 
 if __name__ == '__main__':
