@@ -52,6 +52,7 @@ class ThreatDetector(threading.Thread):
         self.check_interval = check_interval
         self.ml_detector = ml_detector
         self.anomaly_threshold = anomaly_threshold
+        self._ml_enabled = ml_detector is not None
         self._known_hosts: Set[str] = set()  # hosts we have already seen
         # maintain last alert times to avoid spamming
         self._last_alert: Dict[str, Dict[str, float]] = {}
@@ -93,7 +94,7 @@ class ThreatDetector(threading.Thread):
                                   f"High packet rate detected: {rate:.1f} pkt/s", now)
 
             # ML anomaly detection
-            if self.ml_detector is not None:
+            if self._ml_enabled and self.ml_detector is not None:
                 try:
                     features = self._extract_features(src_ip)
                     score = self.ml_detector.predict(features)
@@ -101,7 +102,8 @@ class ThreatDetector(threading.Thread):
                         self._raise_alert(src_ip, "ml_anomaly",
                                           f"Anomalous traffic pattern detected (score={score:.3f})", now)
                 except Exception as exc:
-                    logger.exception("ML anomaly detection failed: %s", exc)
+                    logger.exception("ML anomaly detection failed; disabling ML checks for this run: %s", exc)
+                    self._ml_enabled = False
 
     def _raise_alert(self, src_ip: str, alert_type: str, description: str, timestamp: float) -> None:
         # avoid generating repeated alerts of the same type for a host within a cooldown period
