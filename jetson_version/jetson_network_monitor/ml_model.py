@@ -64,24 +64,21 @@ class AnomalyDetector:
             with open(self.model_path, 'wb') as f:
                 pickle.dump(self.model, f)
 
-    def predict(self, x: Iterable[float]) -> float:
-        """Return anomaly score for one feature vector.
+def predict(self, x: Iterable[float]) -> float:
+    """Return anomaly score for one feature vector.
+    Lower scores indicate more anomalous behavior.
+    """
+    if self.model is None:
+        raise RuntimeError("Model not loaded. Call fit() or provide a trained model path.")
+    x = np.array(x, dtype=float).reshape(1, -1)
 
-        Lower scores indicate more anomalous behavior.
-        Supports both newer sklearn (score_samples) and older sklearn
-        versions (decision_function).
-        """
-        if self.model is None:
-            raise RuntimeError("Model not loaded. Call fit() or provide a trained model path.")
-        x = np.array(x, dtype=float).reshape(1, -1)
-        # Newer sklearn: score_samples exists and lower is more anomalous.
-        if hasattr(self.model, "score_samples"):
-            return float(self.model.score_samples(x)[0])
-        # Older sklearn (e.g., 0.19): decision_function exists instead.
-        # decision_function is also lower for more anomalous points.
-        if hasattr(self.model, "decision_function"):
-            return float(self.model.decision_function(x)[0])
-        raise AttributeError(
-            "Loaded model does not expose score_samples or decision_function; "
-            "cannot compute anomaly score."
-        )
+    if hasattr(self.model, "score_samples"):
+        return float(self.model.score_samples(x)[0])
+
+    if hasattr(self.model, "decision_function"):
+        return float(self.model.decision_function(x)[0])
+
+    raise AttributeError(
+        "Loaded model does not expose score_samples or decision_function; cannot compute anomaly score."
+    )
+
