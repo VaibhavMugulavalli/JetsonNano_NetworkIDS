@@ -26,6 +26,7 @@ Note: training and prediction require scikit‑learn to be installed.
 
 import pickle
 from typing import Iterable, Any
+import logging
 
 import numpy as np
 
@@ -41,13 +42,15 @@ class AnomalyDetector:
     def __init__(self, model_path: str = None):
         self.model_path = model_path
         self.model = None
+        self.load_error = None
         if model_path:
             try:
                 with open(model_path, 'rb') as f:
                     self.model = pickle.load(f)
-            except Exception:
+            except Exception as exc:
                 # model will be None until fit is called
                 self.model = None
+                self.load_error = exc
 
     def fit(self, X: np.ndarray, **kwargs) -> None:
         """Train an IsolationForest on the given feature matrix and save to disk."""
@@ -62,10 +65,23 @@ class AnomalyDetector:
                 pickle.dump(self.model, f)
 
     def predict(self, x: Iterable[float]) -> float:
-        """Return the anomaly score for a single feature vector.  Lower scores indicate anomalies."""
+        """Return anomaly score for one feature vector.
+
+        Lower scores indicate more anomalous behavior.
+        Supports both newer sklearn (score_samples) and older sklearn
+        versions (decision_function).
+        """
         if self.model is None:
             raise RuntimeError("Model not loaded. Call fit() or provide a trained model path.")
         x = np.array(x, dtype=float).reshape(1, -1)
-        # IsolationForest provides 'score_samples' where lower scores are more anomalous
-        score = self.model.score_samples(x)[0]
-        return score
+        # Newer sklearn: score_samples exists and lower is more anomalous.
+        if hasattr(self.model, "score_samples"):
+            return float(self.model.score_samples(x)[0])
+        # Older sklearn (e.g., 0.19): decision_function exists instead.
+        # decision_function is also lower for more anomalous points.
+        if hasattr(self.model, "decision_function"):
+            return float(self.model.decision_function(x)[0])
+        raise AttributeError(
+            "Loaded model does not expose score_samples or decision_function; "
+            "cannot compute anomaly score."
+        )

@@ -112,6 +112,10 @@ python simulate_traffic_to_jetson.py --target-ip 192.168.50.2 --profile port_sca
 
 # Flood-heavy traffic
 python simulate_traffic_to_jetson.py --target-ip 192.168.50.2 --profile flood --duration 120 --rate 800 --workers 6
+#ML Anomaly
+python simulate_traffic_to_jetson.py --target-ip 192.168.50.2 --profile protocol_shift --duration 240 --rate 350 --workers 4
+
+python simulate_traffic_to_jetson.py --target-ip 192.168.50.2 --profile beacon --duration 300 --rate 60 --workers 2
 ```
 
 ## 6. Collect Real Feature CSV on Jetson

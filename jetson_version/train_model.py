@@ -11,7 +11,7 @@ import argparse
 import math
 import pickle
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 import pandas as pd
 from sklearn.ensemble import IsolationForest
@@ -23,6 +23,15 @@ FEATURE_COLUMNS = [
     "avg_packet_size",
     "protocol_entropy",
 ]
+
+
+def _score_samples_compat(model: IsolationForest, X):
+    """Return per-row anomaly scores across sklearn versions."""
+    if hasattr(model, "score_samples"):
+        return model.score_samples(X)
+    if hasattr(model, "decision_function"):
+        return model.decision_function(X)
+    raise AttributeError("IsolationForest model has no score_samples or decision_function")
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,7 +59,7 @@ def _candidate_inputs(base_dir: Path) -> Iterable[Path]:
         yield base_dir / name
 
 
-def _resolve_input_path(input_arg: str | None) -> Path:
+def _resolve_input_path(input_arg: Optional[str]) -> Path:
     if input_arg:
         path = Path(input_arg)
         if not path.exists():
@@ -108,7 +117,7 @@ def main() -> None:
     with output_path.open("wb") as f:
         pickle.dump(model, f)
 
-    scores = model.score_samples(X)
+    scores = _score_samples_compat(model, X)
     score_min = float(scores.min())
     score_mean = float(scores.mean())
     score_max = float(scores.max())
